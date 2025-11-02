@@ -1,0 +1,25 @@
+/**:
+  ros__parameters:
+    camera_topic: "/camera/raw"
+    undistorted_camera_topic: "/camera/undistorted"
+    camera_matrix: [1280.1728993860345, 0.0, 929.3564559633094,
+                    0.0, 1281.7359530171998, 585.2180996622897,
+                    0.0, 0.0, 1.0]
+    dist_coeff: [-0.3995808972068582, 0.20928212904957366, 
+                 -0.0001531091196493878, 0.0001199973241677934, 
+                 -0.0666574109963061]
+
+cam2topic:
+  ros__parameters:
+    camera_index: 4
+    image_width: 1920
+    image_height: 1080
+
+pose_estimator:
+  ros__parameters:
+    ArUcoDictionary: 0 # DICT_4X4_50
+    ArenaArUcoMarkerSize: 0.08
+    MechalinoArUcoMarkerSize: 0.066
+    arena_ArUcoID: 0
+    robots_pose_topic: "/robots/pose" # followed by /robot_id
+    arena_pose_topic: "/arena/pose" # not used
