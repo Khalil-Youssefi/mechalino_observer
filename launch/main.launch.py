@@ -31,6 +31,22 @@ def generate_launch_description():
         parameters=[params]
     )
 
+    odom_publisher = Node(
+        package='mechalino_observer',
+        executable='odom_publisher',
+        name='odom_publisher',
+        output='screen',
+        parameters=[params]
+    )
+
+    TableMarkerPub = Node(
+            package='mechalino_observer',
+            executable='TableMarkerPub',
+            name='TableMarkerPub',
+            output='screen',
+        parameters=[params]
+        )
+
     rviz2 = Node(
             package='rviz2',
             executable='rviz2',
@@ -42,6 +58,8 @@ def generate_launch_description():
     nodes.append(cam2topic)
     nodes.append(undistorted_img_pub)
     nodes.append(pose_estimator)
+    nodes.append(odom_publisher)
+    nodes.append(TableMarkerPub)
     nodes.append(rviz2)
 
     return LaunchDescription(nodes)

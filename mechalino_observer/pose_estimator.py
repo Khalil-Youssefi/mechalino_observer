@@ -20,6 +20,7 @@ class PoseEstimator(Node):
         self.declare_parameter('ArenaArUcoMarkerSize', rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter('MechalinoArUcoMarkerSize', rclpy.Parameter.Type.DOUBLE)
         self.declare_parameter('arena_ArUcoID', rclpy.Parameter.Type.INTEGER)
+        self.declare_parameter('arena_marker_xy', rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('robots_pose_topic', rclpy.Parameter.Type.STRING)
         self.declare_parameter('arena_pose_topic', rclpy.Parameter.Type.STRING)
         self.declare_parameter('camera_matrix', rclpy.Parameter.Type.DOUBLE_ARRAY)
@@ -31,6 +32,7 @@ class PoseEstimator(Node):
         self.ArenaArUcoMarkerSize = params['ArenaArUcoMarkerSize'].value
         self.MechalinoArUcoMarkerSize = params['MechalinoArUcoMarkerSize'].value
         self.arena_ArUcoID = params['arena_ArUcoID'].value
+        self.arena_marker_xy = params['arena_marker_xy'].value
         self.robots_pose_topic = params['robots_pose_topic'].value
         self.arena_pose_topic = params['arena_pose_topic'].value
         self.K = np.array(params['camera_matrix'].value).reshape(3, 3)
@@ -144,15 +146,15 @@ class PoseEstimator(Node):
                 else:
                     t.child_frame_id = f"mechalino_{marker_id}"
                     
-                t.transform.translation.x = tvec_f[0][0]
-                t.transform.translation.y = tvec_f[1][0]
+                t.transform.translation.x = tvec_f[0][0] #- (self.arena_marker_xy[0] if marker_id == self.arena_ArUcoID else 0)
+                t.transform.translation.y = tvec_f[1][0] #- (self.arena_marker_xy[1] if marker_id == self.arena_ArUcoID else 0)
                 t.transform.translation.z = tvec_f[2][0]
         
                 # # Quaternion format     
-                t.transform.rotation.x = quat[0] 
-                t.transform.rotation.y = quat[1] 
-                t.transform.rotation.z = quat[2] 
-                t.transform.rotation.w = quat[3] 
+                t.transform.rotation.x = quat[0]
+                t.transform.rotation.y = quat[1]
+                t.transform.rotation.z = quat[2]
+                t.transform.rotation.w = quat[3]
                 
                 self.tf_broadcaster.sendTransform(t)
 

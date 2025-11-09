@@ -28,7 +28,9 @@ setup(
             'observer = mechalino_observer.observer:main',
             'cam2topic = mechalino_observer.cam2topic:main',
             'undistorted_img_pub = mechalino_observer.undistorted_img_pub:main',
-            'pose_estimator = mechalino_observer.pose_estimator:main'
+            'pose_estimator = mechalino_observer.pose_estimator:main',
+            'odom_publisher = mechalino_observer.odom_publisher:main',
+            'TableMarkerPub = mechalino_observer.TableMarkerPub:main'
         ],
     },
 )

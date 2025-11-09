@@ -7,6 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /Image1
+        - /Marker1
       Splitter Ratio: 0.5
     Tree Height: 516
   - Class: rviz_common/Selection
@@ -74,6 +75,8 @@ Visualization Manager:
           Value: true
         camera:
           Value: true
+        mechalino_15:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -83,7 +86,22 @@ Visualization Manager:
         camera:
           arena:
             {}
+          mechalino_15:
+            {}
       Update Interval: 0
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        plane: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /visualization_marker
       Value: true
   Enabled: true
   Global Options:
@@ -131,16 +149,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3.5
+      Distance: 3.87772536277771
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.8999999761581421
-        Y: 0.4000000059604645
-        Z: 0
+        X: 1.2816932201385498
+        Y: 0.8733487725257874
+        Z: 0.00047297304263338447
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -149,7 +167,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: arena
       Value: Orbit (rviz)
-      Yaw: -1.5698000192642212
+      Yaw: 4.713385581970215
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 3.5
