@@ -1,11 +1,11 @@
 /**:
   ros__parameters:
-    camera_matrix: [1334.6869496371785, 0.0, 914.9379678018371,
-                    0.0, 1334.4909345531835, 560.9988948543311,
+    camera_matrix: [1378.8670120451607, 0.0, 937.0810895286735,
+                    0.0, 1379.0715949839703, 561.5996329656532,
                     0.0, 0.0, 1.0]
-    dist_coeff: [-0.440399702197229, 0.26768213854994716,
-                0.0028466070165869247, 0.0016047037230352734,
-                -0.09913753835216463]
+    dist_coeff: [-0.44422210350101066, 0.2541470051820158,
+                0.0014616601794162248, -0.0006275944293412642,
+                -0.0850860601858966]
     arena_marker_xy: [0.08, 0.08]
     # topics
     robots_pose_topic: "/robots/pose" # followed by /robot_id
@@ -26,10 +26,9 @@ pose_estimator:
     ArenaArUcoMarkerSize: 0.08
     MechalinoArUcoMarkerSize: 0.066
     arena_ArUcoID: 0
-
+    cutoff_freq: 1.0
 odom_publisher:
-
   ros__parameters:
-    odom_publisher_frequency: 1.0
+    odom_publisher_frequency: 2.0
     ip_list_file: "/opt/mechalinos/ip_list.txt"
     http_timeout: 0.5

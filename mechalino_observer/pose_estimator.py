@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import TransformStamped
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import PoseStamped
+import time
 
 class PoseEstimator(Node):
     def __init__(self):
@@ -25,6 +26,7 @@ class PoseEstimator(Node):
         self.declare_parameter('arena_pose_topic', rclpy.Parameter.Type.STRING)
         self.declare_parameter('camera_matrix', rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('dist_coeff', rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('cutoff_freq', rclpy.Parameter.Type.DOUBLE)
 
         params = self._parameters
         self.camera_topic = params['camera_topic'].value
@@ -37,6 +39,8 @@ class PoseEstimator(Node):
         self.arena_pose_topic = params['arena_pose_topic'].value
         self.K = np.array(params['camera_matrix'].value).reshape(3, 3)
         self.dist_coeffs = np.array(params['dist_coeff'].value).reshape(5, 1)
+        self.cutoff_freq = params['cutoff_freq'].value
+        
         self.arena_object_points = np.array([[-self.ArenaArUcoMarkerSize/2, self.ArenaArUcoMarkerSize/2, 0],
                                [self.ArenaArUcoMarkerSize/2, self.ArenaArUcoMarkerSize/2, 0],
                                [self.ArenaArUcoMarkerSize/2, -self.ArenaArUcoMarkerSize/2, 0],
@@ -63,10 +67,12 @@ class PoseEstimator(Node):
         detectorParams.cornerRefinementMinAccuracy = 0.1 # 0.1
         self.aruco_marker_detector = cv2.aruco.ArucoDetector(aruco_dict, detectorParams, cv2.aruco.RefineParameters())
 
-        # tvec and rvec history for averaging for arena tf
-        self.rotation_filtered = None  # Store as Rotation object
-        self.tvec_filtered = None
-        self.alpha = 0.15  # filter coefficient
+        # Low-pass filter state for each marker
+        self.filtered_states = {}  # {marker_id: {'rotation': R, 'tvec': array, 'timestamp': float}}
+        
+        # Velocity constraint for outlier rejection
+        self.max_velocity = 0.20  # 20 cm/s in meters
+        self.max_angular_velocity = np.pi  # rad/s (reasonable default)
 
         self.subscription = self.create_subscription(
             Image, self.camera_topic, self.image_callback, 10)
@@ -74,10 +80,103 @@ class PoseEstimator(Node):
         
         self.robot_pose_publishers = dict()
 
-        self.get_logger().info("Pose Estimator Node has started.")
+        self.get_logger().info(f"Pose Estimator Node started with {self.cutoff_freq} Hz cutoff frequency")
+
+    def compute_alpha(self, dt, cutoff_freq):
+        """
+        Compute filter coefficient from cutoff frequency and sample time.
+        alpha = dt / (dt + RC) where RC = 1 / (2 * pi * fc)
+        """
+        if dt <= 0:
+            return 0.0
+        RC = 1.0 / (2.0 * np.pi * cutoff_freq)
+        alpha = dt / (dt + RC)
+        return np.clip(alpha, 0.0, 1.0)
+
+    def is_outlier(self, marker_id, tvec, rvec, dt):
+        """
+        Check if detection is an outlier based on velocity constraints.
+        """
+        if marker_id not in self.filtered_states or dt <= 0 or dt > 1.0:
+            return False
+        
+        prev_state = self.filtered_states[marker_id]
+        
+        # Check translation velocity
+        position_diff = np.linalg.norm(tvec - prev_state['tvec'])
+        velocity = position_diff / dt
+        
+        if velocity > self.max_velocity * 1.5:  # 1.5x safety factor
+            self.get_logger().warn(
+                f"Outlier detected for marker {marker_id}: velocity {velocity:.3f} m/s "
+                f"(max: {self.max_velocity:.3f} m/s)"
+            )
+            return True
+        
+        # Check angular velocity
+        current_rotation = R.from_rotvec(rvec.flatten())
+        rotation_diff = prev_state['rotation'].inv() * current_rotation
+        angle_diff = np.linalg.norm(rotation_diff.as_rotvec())
+        angular_velocity = angle_diff / dt
+        
+        if angular_velocity > self.max_angular_velocity * 1.5:
+            self.get_logger().warn(
+                f"Outlier detected for marker {marker_id}: angular velocity {angular_velocity:.3f} rad/s "
+                f"(max: {self.max_angular_velocity:.3f} rad/s)"
+            )
+            return True
+        
+        return False
+
+    def apply_lowpass_filter(self, marker_id, tvec, rvec, timestamp):
+        """
+        Apply low-pass filter to translation and rotation.
+        Returns filtered rvec and tvec.
+        """
+        current_rotation = R.from_rotvec(rvec.flatten())
+        
+        # Initialize filter state for new markers
+        if marker_id not in self.filtered_states:
+            self.filtered_states[marker_id] = {
+                'rotation': current_rotation,
+                'tvec': tvec.copy(),
+                'timestamp': timestamp
+            }
+            return rvec, tvec
+        
+        prev_state = self.filtered_states[marker_id]
+        dt = timestamp - prev_state['timestamp']
+        
+        # Outlier rejection
+        if self.is_outlier(marker_id, tvec, rvec, dt):
+            # Return previous filtered value instead of raw measurement
+            return prev_state['rotation'].as_rotvec().reshape(-1, 1), prev_state['tvec']
+        
+        # Compute filter coefficient based on actual sample time
+        alpha = self.compute_alpha(dt, self.cutoff_freq)
+        
+        # Filter translation (simple exponential filter)
+        tvec_filtered = alpha * tvec + (1.0 - alpha) * prev_state['tvec']
+        
+        # Filter rotation using SLERP (Spherical Linear Interpolation)
+        rotation_filtered = prev_state['rotation'] * (
+            prev_state['rotation'].inv() * current_rotation
+        ) ** alpha
+        
+        # Update filter state
+        self.filtered_states[marker_id] = {
+            'rotation': rotation_filtered,
+            'tvec': tvec_filtered,
+            'timestamp': timestamp
+        }
+        
+        rvec_filtered = rotation_filtered.as_rotvec().reshape(-1, 1)
+        
+        return rvec_filtered, tvec_filtered
 
     def image_callback(self, msg):
         try:
+            timestamp = time.time()  # Use monotonic time for dt calculation
             cv_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
             gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             self.get_logger().debug("Image received.")
@@ -99,38 +198,8 @@ class PoseEstimator(Node):
                     self.K,
                     self.dist_coeffs)
                 
-                rvec_f = None # placeholder
-                tvec_f = None # placeholder
-
-                if marker_id == self.arena_ArUcoID:
-                    # Convert rvec to Rotation object
-                    current_rotation = R.from_rotvec(rvec.flatten())
-                    
-                    if self.rotation_filtered is None:
-                        rotation_f = current_rotation
-                        tvec_f = tvec
-                    else:
-                        # SLERP (Spherical Linear Interpolation) for rotations
-                        # This is the mathematically correct way to "average" rotations
-                        rotation_f = self.rotation_filtered * (
-                            self.rotation_filtered.inv() * current_rotation
-                        ) ** self.alpha  # Interpolate on manifold
-                        
-                        # Or use scipy's built-in slerp:
-                        # from scipy.spatial.transform import Slerp
-                        # slerp = Slerp([0, 1], R.concatenate([self.rotation_filtered, current_rotation]))
-                        # rotation_f = slerp(self.alpha)
-                        
-                        tvec_f = self.alpha * tvec + (1 - self.alpha) * self.tvec_filtered
-                    
-                    self.rotation_filtered = rotation_f
-                    self.tvec_filtered = tvec_f
-                    
-                    # Convert back to rvec for solvePnP output format
-                    rvec_f = rotation_f.as_rotvec().reshape(-1, 1)
-                else:
-                    rvec_f = rvec
-                    tvec_f = tvec
+                # Apply low-pass filter to all markers
+                rvec_f, tvec_f = self.apply_lowpass_filter(marker_id, tvec, rvec, timestamp)
 
                 rotation_matrix = np.eye(4)
                 rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvec_f))[0]
@@ -142,12 +211,12 @@ class PoseEstimator(Node):
                 t.header.frame_id = 'camera'
 
                 if marker_id == self.arena_ArUcoID:
-                    t.child_frame_id = f"arena"
+                    t.child_frame_id = f"arena_ArUcoID"
                 else:
                     t.child_frame_id = f"mechalino_{marker_id}"
                     
-                t.transform.translation.x = tvec_f[0][0] #- (self.arena_marker_xy[0] if marker_id == self.arena_ArUcoID else 0)
-                t.transform.translation.y = tvec_f[1][0] #- (self.arena_marker_xy[1] if marker_id == self.arena_ArUcoID else 0)
+                t.transform.translation.x = tvec_f[0][0]
+                t.transform.translation.y = tvec_f[1][0]
                 t.transform.translation.z = tvec_f[2][0]
         
                 # # Quaternion format     
@@ -157,6 +226,18 @@ class PoseEstimator(Node):
                 t.transform.rotation.w = quat[3]
                 
                 self.tf_broadcaster.sendTransform(t)
+
+                # make a copy of t for arena itself with adjusted position
+                if marker_id == self.arena_ArUcoID:
+                    arena_t = TransformStamped()
+                    arena_t.header = t.header
+                    arena_t.child_frame_id = "arena"
+                    arena_t.transform.translation.x = tvec_f[0][0] - self.arena_marker_xy[0]
+                    arena_t.transform.translation.y = tvec_f[1][0] + self.arena_marker_xy[1]
+                    arena_t.transform.translation.z = tvec_f[2][0]
+                    arena_t.transform.rotation = t.transform.rotation
+                    
+                    self.tf_broadcaster.sendTransform(arena_t)
 
                 if marker_id != self.arena_ArUcoID:
                     # check if marker_id is in the robot pose publishers dict
