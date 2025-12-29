@@ -16,7 +16,7 @@
 
 cam2topic:
   ros__parameters:
-    camera_index: 4
+    camera_index: 4 # v4l2-ctl --list-devices (sudo apt install v4l-utils)
     image_width: 1920
     image_height: 1080
 

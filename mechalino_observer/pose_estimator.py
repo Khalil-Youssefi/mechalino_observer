@@ -207,7 +207,7 @@ class PoseEstimator(Node):
                 quat = r.as_quat()
 
                 t = TransformStamped()
-                t.header.stamp = self.get_clock().now().to_msg()
+                t.header.stamp = msg.header.stamp
                 t.header.frame_id = 'camera'
 
                 if marker_id == self.arena_ArUcoID:
@@ -227,17 +227,17 @@ class PoseEstimator(Node):
                 
                 self.tf_broadcaster.sendTransform(t)
 
-                # make a copy of t for arena itself with adjusted position
-                if marker_id == self.arena_ArUcoID:
-                    arena_t = TransformStamped()
-                    arena_t.header = t.header
-                    arena_t.child_frame_id = "arena"
-                    arena_t.transform.translation.x = tvec_f[0][0] - self.arena_marker_xy[0]
-                    arena_t.transform.translation.y = tvec_f[1][0] + self.arena_marker_xy[1]
-                    arena_t.transform.translation.z = tvec_f[2][0]
-                    arena_t.transform.rotation = t.transform.rotation
+                # # make a copy of t for arena itself with adjusted position
+                # if marker_id == self.arena_ArUcoID:
+                #     arena_t = TransformStamped()
+                #     arena_t.header = t.header
+                #     arena_t.child_frame_id = "arena"
+                #     arena_t.transform.translation.x = tvec_f[0][0] - self.arena_marker_xy[0]
+                #     arena_t.transform.translation.y = tvec_f[1][0] + self.arena_marker_xy[1]
+                #     arena_t.transform.translation.z = tvec_f[2][0]
+                #     arena_t.transform.rotation = t.transform.rotation
                     
-                    self.tf_broadcaster.sendTransform(arena_t)
+                #     self.tf_broadcaster.sendTransform(arena_t)
 
                 if marker_id != self.arena_ArUcoID:
                     # check if marker_id is in the robot pose publishers dict
@@ -246,7 +246,7 @@ class PoseEstimator(Node):
                         self.robot_pose_publishers[marker_id] = self.create_publisher(PoseStamped, f"{self.robots_pose_topic}/mechalino_{marker_id}", 10)
                     pose_msg = PoseStamped()
                     pose_msg.header.stamp = self.get_clock().now().to_msg()
-                    pose_msg.header.frame_id = f"mechalino_{marker_id}"
+                    pose_msg.header.frame_id = f"camera"
                     pose_msg.pose.position.x = tvec_f[0][0]
                     pose_msg.pose.position.y = tvec_f[1][0]
                     pose_msg.pose.position.z = tvec_f[2][0]

@@ -5,6 +5,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+from builtin_interfaces.msg import Time
+
 class CameraPublisher(Node):
     def __init__(self,args):
         super().__init__('camera_publisher')
@@ -36,6 +38,8 @@ class CameraPublisher(Node):
         ret, frame = self.cap.read()
         if ret:
             msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = "camera"
             self.publisher.publish(msg)
             # self.get_logger().info("Publishing image")
         else:
