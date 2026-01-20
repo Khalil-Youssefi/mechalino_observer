@@ -37,7 +37,7 @@ class TfPoseTcpServer(Node):
     
         while rclpy.ok():
             conn, addr = srv.accept()              # addr = (ip, port)
-            conn.settimeout(2.0)
+            conn.settimeout(2.5)
             threading.Thread(target=self.handle_client, args=(conn, addr[0]), daemon=True).start()
 
     def handle_client(self, conn, ip_str: str):
@@ -53,8 +53,10 @@ class TfPoseTcpServer(Node):
             while rclpy.ok():
                 try:
                     data = conn.recv(64)
-                except TimeoutError:
+                except socket.timeout:
                     continue
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    break
                 if not data:
                     break
                 buf += data

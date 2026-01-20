@@ -8,7 +8,7 @@ import yaml
 def generate_launch_description():
     pkg_share = get_package_share_directory('mechalino_observer')
     params_path = os.path.join(pkg_share, 'config', 'params.yaml')
-    rviz_config_path = os.path.join(pkg_share, 'config', 'rviz_config.rviz')
+    rviz_config_path = os.path.join(pkg_share, 'config', 'rviz_config_2.rviz')
 
     # ---- load arena_marker_xy from params.yaml ----
     with open(params_path, 'r') as f:
@@ -79,6 +79,14 @@ def generate_launch_description():
             output='screen',
         parameters=[params_path]
         )
+    
+    visited_area_marker_pub_node = Node(
+            package='mechalino_observer',
+            executable='visited_area_marker_pub_node',
+            name='visited_area_marker_pub_node',
+            output='screen',
+        parameters=[params_path]
+        )
 
     rviz2 = Node(
             package='rviz2',
@@ -105,6 +113,7 @@ def generate_launch_description():
     nodes.append(tf_pose_tcp_server)
     nodes.append(TableMarkerPub)
     # nodes.append(pose_compare_test)
+    nodes.append(visited_area_marker_pub_node)
     nodes.append(rviz2)
 
     return LaunchDescription(nodes)

@@ -11,6 +11,7 @@ Panels:
         - /Marker1
         - /Pose1
         - /Pose2
+        - /MarkerArray1
       Splitter Ratio: 0.5029411911964417
     Tree Height: 822
   - Class: rviz_common/Selection
@@ -136,6 +137,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /robots/pose/mechalino_16
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /coverage_markers
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -197,10 +210,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9047969579696655
+      Pitch: 1.5647964477539062
       Target Frame: arena
       Value: Orbit (rviz)
-      Yaw: 4.923375129699707
+      Yaw: 4.7633748054504395
     Saved:
       - Class: rviz_default_plugins/Orbit
         Distance: 3.5
