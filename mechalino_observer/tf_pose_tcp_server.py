@@ -37,7 +37,7 @@ class TfPoseTcpServer(Node):
     
         while rclpy.ok():
             conn, addr = srv.accept()              # addr = (ip, port)
-            conn.settimeout(2.5)
+            conn.settimeout(3.5)
             threading.Thread(target=self.handle_client, args=(conn, addr[0]), daemon=True).start()
 
     def handle_client(self, conn, ip_str: str):
@@ -63,7 +63,7 @@ class TfPoseTcpServer(Node):
                 if b"\n" not in buf:
                     continue
                 line, _, buf = buf.partition(b"\n")
-                if line.strip() != b"POSE":
+                if line.strip() != b"POS":
                     conn.sendall(b"ERR\n")
                     continue
 
