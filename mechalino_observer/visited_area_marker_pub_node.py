@@ -34,7 +34,7 @@ class visited_area_marker_pub_node(Node):
 
         # ---- Parameters (optional; sensible defaults) ----
         self.declare_parameter("world_frame", "arena")
-        self.declare_parameter("robot_frames", ["mechalino_15", "mechalino_16"])
+        self.declare_parameter("robot_frames", ["mechalino_15", "mechalino_16", "mechalino_17"])
         self.declare_parameter("marker_topic", "coverage_markers")
 
         self.world_frame = self.get_parameter("world_frame").value
@@ -83,6 +83,7 @@ class visited_area_marker_pub_node(Node):
         explicit = {
             "mechalino_15": (1.0, 0.0, 0.0, 0.9),
             "mechalino_16": (0.0, 0.0, 1.0, 0.9),
+            "mechalino_17": (0.0, 1.0, 0.0, 0.9),
         }
 
         colors = {}

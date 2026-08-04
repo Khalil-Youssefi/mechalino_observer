@@ -33,7 +33,8 @@ setup(
             'tf_pose_tcp_server = mechalino_observer.tf_pose_tcp_server:main',
             'pose_compare_test = mechalino_observer.pose_compare_test:main',
             'TableMarkerPub = mechalino_observer.TableMarkerPub:main',
-            'visited_area_marker_pub_node = mechalino_observer.visited_area_marker_pub_node:main'
+            'visited_area_marker_pub_node = mechalino_observer.visited_area_marker_pub_node:main',
+            'debug_map_viz = mechalino_observer.debug_map_viz:main',
         ],
     },
 )

@@ -87,7 +87,15 @@ def generate_launch_description():
             output='screen',
         parameters=[params_path]
         )
-
+    
+    debug_map_viz = Node(
+            package='mechalino_observer',
+            executable='debug_map_viz',
+            name='debug_map_viz',
+            output='screen',
+        parameters=[params_path]
+        )
+    
     rviz2 = Node(
             package='rviz2',
             executable='rviz2',
@@ -114,6 +122,7 @@ def generate_launch_description():
     nodes.append(TableMarkerPub)
     # nodes.append(pose_compare_test)
     nodes.append(visited_area_marker_pub_node)
+    nodes.append(debug_map_viz)
     nodes.append(rviz2)
 
     return LaunchDescription(nodes)
