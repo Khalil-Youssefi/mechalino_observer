@@ -82,6 +82,116 @@ class PoseEstimator(Node):
 
         self.get_logger().info(f"Pose Estimator Node started with {self.cutoff_freq} Hz cutoff frequency")
 
+        self.declare_parameter('grid_cell', 0.15)
+        self.declare_parameter('grid_x0', 0.15)
+        self.declare_parameter('grid_y0', 0.15)
+        self.declare_parameter('grid_cols', 11)
+        self.declare_parameter('grid_rows', 4)
+        self.declare_parameter('grid_image_topic', '/arena/grid_image')
+
+        self.grid_cell = self.get_parameter('grid_cell').value
+        self.grid_x0 = self.get_parameter('grid_x0').value
+        self.grid_y0 = self.get_parameter('grid_y0').value
+        self.grid_cols = self.get_parameter('grid_cols').value
+        self.grid_rows = self.get_parameter('grid_rows').value
+
+        self.grid_image_publisher = self.create_publisher(
+            Image,
+            self.get_parameter('grid_image_topic').value,
+            10
+        )
+
+    def draw_grid(self, image, rvec, tvec):
+        overlay = image.copy()
+
+        k = self.grid_cell
+
+        # X0/Y0 are centers of cell [0][0].
+        # Therefore the outer grid boundary is half a cell before them.
+        xmin = self.grid_x0 - k / 2.0
+        ymin = self.grid_y0 - k / 2.0
+
+        xmax = xmin + self.grid_cols * k
+        ymax = ymin + self.grid_rows * k
+
+        marker_x = self.arena_marker_xy[0]
+        marker_y = self.arena_marker_xy[1]
+
+        def project(table_points):
+            marker_points = []
+
+            for x, y in table_points:
+                marker_points.append([
+                    x - marker_x,
+                    y - marker_y,
+                    0.0
+                ])
+
+            marker_points = np.asarray(
+                marker_points,
+                dtype=np.float32
+            )
+
+            img_points, _ = cv2.projectPoints(
+                marker_points,
+                rvec,
+                tvec,
+                self.K,
+                self.dist_coeffs
+            )
+
+            return img_points.reshape(-1, 2).astype(int)
+
+        # Number of points used to approximate lens distortion
+        N = 50
+
+        # Vertical grid lines
+        for c in range(self.grid_cols + 1):
+            x = xmin + c * k
+
+            ys = np.linspace(ymin, ymax, N)
+
+            table_points = [
+                (x, y)
+                for y in ys
+            ]
+
+            p = project(table_points)
+
+            cv2.polylines(
+                overlay,
+                [p.reshape(-1, 1, 2)],
+                False,
+                (0, 255, 0),
+                2,
+                cv2.LINE_AA
+            )
+
+
+        # Horizontal grid lines
+        for r in range(self.grid_rows + 1):
+            y = ymin + r * k
+
+            xs = np.linspace(xmin, xmax, N)
+
+            table_points = [
+                (x, y)
+                for x in xs
+            ]
+
+            p = project(table_points)
+
+            cv2.polylines(
+                overlay,
+                [p.reshape(-1, 1, 2)],
+                False,
+                (0, 255, 0),
+                2,
+                cv2.LINE_AA
+            )
+
+        return overlay
+
     def compute_alpha(self, dt, cutoff_freq):
         """
         Compute filter coefficient from cutoff frequency and sample time.
@@ -185,7 +295,8 @@ class PoseEstimator(Node):
             if marker_ids is None:
                 self.get_logger().warn("No markers detected!")
                 return
-            
+
+            arena_pose = None
             for i, marker_id in enumerate(marker_ids.flatten()):
                 if marker_id == self.arena_ArUcoID:
                     object_points = self.arena_object_points
@@ -212,6 +323,7 @@ class PoseEstimator(Node):
 
                 if marker_id == self.arena_ArUcoID:
                     t.child_frame_id = f"arena_ArUcoID"
+                    arena_pose = (rvec_f.copy(), tvec_f.copy())
                 else:
                     t.child_frame_id = f"mechalino_{marker_id}"
                     
@@ -255,7 +367,22 @@ class PoseEstimator(Node):
                     pose_msg.pose.orientation.z = quat[2]
                     pose_msg.pose.orientation.w = quat[3]
                     self.robot_pose_publishers[marker_id].publish(pose_msg)
+            if arena_pose is not None:
+                arena_rvec, arena_tvec = arena_pose
 
+                grid_image = self.draw_grid(
+                    cv_image,
+                    arena_rvec,
+                    arena_tvec
+                )
+
+                grid_msg = self.cv_bridge.cv2_to_imgmsg(
+                    grid_image,
+                    encoding='bgr8'
+                )
+                grid_msg.header = msg.header
+
+                self.grid_image_publisher.publish(grid_msg)
         except Exception as e:
             self.get_logger().error(f"Error processing image: {str(e)}")
 

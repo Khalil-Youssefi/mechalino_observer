@@ -16,7 +16,7 @@
 
 cam2topic:
   ros__parameters:
-    camera_index: 5 # v4l2-ctl --list-devices (sudo apt install v4l-utils)
+    camera_index: 4 # v4l2-ctl --list-devices (sudo apt install v4l-utils)
     image_width: 1920
     image_height: 1080
 
@@ -27,6 +27,13 @@ pose_estimator:
     MechalinoArUcoMarkerSize: 0.066
     arena_ArUcoID: 0
     cutoff_freq: 1.0
+    grid_m: 11
+    grid_n: 4
+    grid_k: 0.15
+    grid_image_topic: "/arena/grid_image"
+    grid_offset_x: 0.15
+    grid_offset_y: 0.15
+
 odom_publisher:
   ros__parameters:
     odom_publisher_frequency: 2.0
