@@ -82,18 +82,18 @@ class PoseEstimator(Node):
 
         self.get_logger().info(f"Pose Estimator Node started with {self.cutoff_freq} Hz cutoff frequency")
 
-        self.declare_parameter('grid_cell', 0.15)
-        self.declare_parameter('grid_x0', 0.15)
-        self.declare_parameter('grid_y0', 0.15)
-        self.declare_parameter('grid_cols', 11)
-        self.declare_parameter('grid_rows', 4)
+        self.declare_parameter('grid_k', 0.15)
+        self.declare_parameter('grid_offset_x', 0.15)
+        self.declare_parameter('grid_offset_y', 0.15)
+        self.declare_parameter('grid_m', 11)
+        self.declare_parameter('grid_n', 4)
         self.declare_parameter('grid_image_topic', '/arena/grid_image')
 
-        self.grid_cell = self.get_parameter('grid_cell').value
-        self.grid_x0 = self.get_parameter('grid_x0').value
-        self.grid_y0 = self.get_parameter('grid_y0').value
-        self.grid_cols = self.get_parameter('grid_cols').value
-        self.grid_rows = self.get_parameter('grid_rows').value
+        self.grid_k = self.get_parameter('grid_k').value
+        self.grid_offset_x = self.get_parameter('grid_offset_x').value
+        self.grid_offset_y = self.get_parameter('grid_offset_y').value
+        self.grid_m = self.get_parameter('grid_m').value
+        self.grid_n = self.get_parameter('grid_n').value
 
         self.grid_image_publisher = self.create_publisher(
             Image,
@@ -104,15 +104,15 @@ class PoseEstimator(Node):
     def draw_grid(self, image, rvec, tvec):
         overlay = image.copy()
 
-        k = self.grid_cell
+        k = self.grid_k
 
         # X0/Y0 are centers of cell [0][0].
         # Therefore the outer grid boundary is half a cell before them.
-        xmin = self.grid_x0 - k / 2.0
-        ymin = self.grid_y0 - k / 2.0
+        xmin = self.grid_offset_x - k / 2.0
+        ymin = self.grid_offset_y - k / 2.0
 
-        xmax = xmin + self.grid_cols * k
-        ymax = ymin + self.grid_rows * k
+        xmax = xmin + self.grid_m * k
+        ymax = ymin + self.grid_n * k
 
         marker_x = self.arena_marker_xy[0]
         marker_y = self.arena_marker_xy[1]
@@ -146,7 +146,7 @@ class PoseEstimator(Node):
         N = 50
 
         # Vertical grid lines
-        for c in range(self.grid_cols + 1):
+        for c in range(self.grid_m + 1):
             x = xmin + c * k
 
             ys = np.linspace(ymin, ymax, N)
@@ -169,7 +169,7 @@ class PoseEstimator(Node):
 
 
         # Horizontal grid lines
-        for r in range(self.grid_rows + 1):
+        for r in range(self.grid_n + 1):
             y = ymin + r * k
 
             xs = np.linspace(xmin, xmax, N)

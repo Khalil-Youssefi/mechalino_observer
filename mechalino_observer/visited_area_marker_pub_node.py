@@ -34,7 +34,10 @@ class visited_area_marker_pub_node(Node):
 
         # ---- Parameters (optional; sensible defaults) ----
         self.declare_parameter("world_frame", "arena")
-        self.declare_parameter("robot_frames", ["mechalino_15", "mechalino_16", "mechalino_17"])
+        self.declare_parameter(
+            "robot_frames",
+            [f"mechalino_{robot_id}" for robot_id in range(15, 25)],
+        )
         self.declare_parameter("marker_topic", "coverage_markers")
 
         self.world_frame = self.get_parameter("world_frame").value
@@ -52,7 +55,7 @@ class visited_area_marker_pub_node(Node):
         self.last_pos: Dict[str, Tuple[float, float, float]] = {}
         self.ring_segments: Dict[str, List[Point]] = {rf: [] for rf in self.robot_frames}
 
-        # Assign colors per robot (example mapping + fallback palette)
+        # Assign a distinct color to each of the ten supported robots.
         self.robot_colors = self._build_color_map(self.robot_frames)
 
         # Timer
@@ -67,8 +70,8 @@ class visited_area_marker_pub_node(Node):
     def _build_color_map(self, robot_frames: List[str]) -> Dict[str, Tuple[float, float, float, float]]:
         """
         Returns RGBA per robot frame.
-        Example requirement: mechalino_15 red, mechalino_16 blue.
-        Others cycle through a palette.
+        The first ten configured frames receive distinct colors. Additional
+        frames cycle through the same palette.
         """
         palette = [
             (1.0, 0.0, 0.0, 0.9),  # red
@@ -78,23 +81,14 @@ class visited_area_marker_pub_node(Node):
             (0.6, 0.0, 0.6, 0.9),  # purple
             (0.0, 0.7, 0.7, 0.9),  # cyan
             (0.5, 0.5, 0.5, 0.9),  # gray
+            (0.9, 0.8, 0.0, 0.9),  # yellow
+            (0.9, 0.0, 0.7, 0.9),  # magenta
+            (0.4, 0.8, 0.2, 0.9),  # lime
         ]
-
-        explicit = {
-            "mechalino_15": (1.0, 0.0, 0.0, 0.9),
-            "mechalino_16": (0.0, 0.0, 1.0, 0.9),
-            "mechalino_17": (0.0, 1.0, 0.0, 0.9),
+        return {
+            robot_frame: palette[index % len(palette)]
+            for index, robot_frame in enumerate(robot_frames)
         }
-
-        colors = {}
-        palette_i = 0
-        for rf in robot_frames:
-            if rf in explicit:
-                colors[rf] = explicit[rf]
-            else:
-                colors[rf] = palette[palette_i % len(palette)]
-                palette_i += 1
-        return colors
 
     def _distance(self, a: Tuple[float, float, float], b: Tuple[float, float, float]) -> float:
         dx = a[0] - b[0]

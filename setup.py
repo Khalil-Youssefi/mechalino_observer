@@ -35,6 +35,8 @@ setup(
             'TableMarkerPub = mechalino_observer.TableMarkerPub:main',
             'visited_area_marker_pub_node = mechalino_observer.visited_area_marker_pub_node:main',
             'debug_map_viz = mechalino_observer.debug_map_viz:main',
+            'experiment_supervisor = mechalino_observer.experiment_supervisor:main',
+            'experiment_browser = mechalino_observer.experiment_browser:main',
         ],
     },
 )

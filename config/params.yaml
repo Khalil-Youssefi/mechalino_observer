@@ -13,6 +13,12 @@
     arena_pose_topic: "/arena/pose" # not used
     camera_topic: "/camera/raw"
     undistorted_camera_topic: "/camera/undistorted"
+    # Shared coverage grid: offsets are the center of cell [0][0].
+    grid_m: 11
+    grid_n: 4
+    grid_k: 0.15
+    grid_offset_x: 0.15
+    grid_offset_y: 0.15
 
 cam2topic:
   ros__parameters:
@@ -27,15 +33,35 @@ pose_estimator:
     MechalinoArUcoMarkerSize: 0.066
     arena_ArUcoID: 0
     cutoff_freq: 1.0
-    grid_m: 11
-    grid_n: 4
-    grid_k: 0.15
     grid_image_topic: "/arena/grid_image"
-    grid_offset_x: 0.15
-    grid_offset_y: 0.15
 
 odom_publisher:
   ros__parameters:
     odom_publisher_frequency: 2.0
     ip_list_file: "/opt/mechalinos/ip_list.txt"
     http_timeout: 0.5
+
+debug_map_viz:
+  ros__parameters:
+    debug_url: "http://192.168.50.15/debug"
+    robot_frame: "mechalino_15"
+    update_period_s: 1.0
+    http_timeout_s: 2.0
+    obstacle_distance_m: 0.15
+    marker_lifetime_s: 2.5
+    map_z: 0.01
+
+experiment_supervisor:
+  ros__parameters:
+    first_robot_id: 15
+    robot_frame_prefix: "mechalino_"
+    robot_ip_prefix: "192.168.50."
+    http_timeout: 2.0
+    reset_delay_s: 0.2
+    completion_poll_period_s: 1.0
+    sample_hz: 10.0
+    movement_epsilon: 0.005
+    all_experiments_filename: "all_experiments.csv"
+    shutdown_on_finish: true
+    # Flattened (row, column) pairs. Cell (0, 0) contains the table marker.
+    excluded_cells: [0, 0]

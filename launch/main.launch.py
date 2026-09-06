@@ -101,7 +101,12 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             output='screen',
-            arguments=['-d', rviz_config_path]  # Load RViz config file
+            arguments=['-d', rviz_config_path],  # Load RViz config file
+            # RViz can block in its unsaved-config dialog after Ctrl+C. Do not
+            # make the entire launch wait through the default 5 s + 5 s signal
+            # escalation; this applies only to the RViz child process.
+            sigterm_timeout='0.5',
+            sigkill_timeout='0.5',
         )
 
     # pose_compare_test = Node(
