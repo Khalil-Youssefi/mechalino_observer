@@ -4,8 +4,10 @@ from typing import Dict, List, Tuple
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from geometry_msgs.msg import Point
+from std_msgs.msg import Empty
 from visualization_msgs.msg import Marker, MarkerArray
 
 from tf2_ros import Buffer, TransformListener
@@ -50,6 +52,15 @@ class visited_area_marker_pub_node(Node):
 
         # Publisher
         self.pub = self.create_publisher(MarkerArray, self.marker_topic, 10)
+        reset_qos = QoSProfile(depth=1)
+        reset_qos.reliability = ReliabilityPolicy.RELIABLE
+        reset_qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
+        self.reset_subscription = self.create_subscription(
+            Empty,
+            '/coverage_markers/reset',
+            self.reset_markers,
+            reset_qos,
+        )
 
         # State: last position per robot and accumulated segments
         self.last_pos: Dict[str, Tuple[float, float, float]] = {}
@@ -66,6 +77,19 @@ class visited_area_marker_pub_node(Node):
             f"Coverage rings from TF started. world_frame='{self.world_frame}', "
             f"robot_frames={self.robot_frames}, Rs={self.rs_m:.3f} m, topic='{self.marker_topic}'"
         )
+
+    def reset_markers(self, message):
+        del message
+        self.last_pos.clear()
+        for points in self.ring_segments.values():
+            points.clear()
+
+        delete_all = Marker()
+        delete_all.action = Marker.DELETEALL
+        marker_array = MarkerArray()
+        marker_array.markers.append(delete_all)
+        self.pub.publish(marker_array)
+        self.get_logger().debug('Cleared coverage marker history for a new run')
 
     def _build_color_map(self, robot_frames: List[str]) -> Dict[str, Tuple[float, float, float, float]]:
         """

@@ -41,6 +41,15 @@ odom_publisher:
     ip_list_file: "/opt/mechalinos/ip_list.txt"
     http_timeout: 0.5
 
+tf_pose_tcp_server:
+  ros__parameters:
+    world_frame: "arena"
+    robot_frame_prefix: "mechalino_"
+    tcp_port: 9000
+    max_tcp_clients: 16
+    client_idle_timeout_s: 30.0
+    max_request_bytes: 256
+
 debug_map_viz:
   ros__parameters:
     debug_url: "http://192.168.50.15/debug"

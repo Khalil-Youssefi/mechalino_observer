@@ -59,7 +59,9 @@ was at least `movement_epsilon`.
 
 Live trajectories are also published as
 `/robots/mechalino_ID/trajectory` (`nav_msgs/Path`). Coverage state is published
-on `/coverage/percentage` and `/coverage/finished`.
+on `/coverage/percentage` and `/coverage/finished`. At the beginning of a new
+run, the supervisor publishes `/coverage_markers/reset`; the persistent marker
+node clears its internal history and removes the previous run from RViz.
 
 ## Experiment browser
 

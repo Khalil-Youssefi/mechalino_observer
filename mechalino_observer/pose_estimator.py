@@ -293,7 +293,7 @@ class PoseEstimator(Node):
             marker_corners, marker_ids, _ = self.aruco_marker_detector.detectMarkers(gray)
             
             if marker_ids is None:
-                self.get_logger().warn("No markers detected!")
+                self.get_logger().debug("No markers detected")
                 return
 
             arena_pose = None

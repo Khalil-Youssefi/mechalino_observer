@@ -23,6 +23,7 @@ def _startup_supervisor(command_results):
     supervisor._send_command_to_all = MagicMock(side_effect=command_results)
     supervisor._abort_start = MagicMock()
     supervisor._record_transform = MagicMock()
+    supervisor._reset_coverage_markers = MagicMock()
     return supervisor
 
 
@@ -41,6 +42,7 @@ def test_start_resets_robot_memory_before_start_command():
     ]
     sleep.assert_called_once_with(0.2)
     supervisor._abort_start.assert_not_called()
+    supervisor._reset_coverage_markers.assert_called_once_with()
     assert supervisor.state == supervisor.RUNNING
 
 

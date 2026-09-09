@@ -21,7 +21,7 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from std_msgs.msg import Bool, Float32
+from std_msgs.msg import Bool, Empty, Float32
 from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformException, TransformListener
 
@@ -159,6 +159,9 @@ class ExperimentSupervisor(Node):
         self.finished_publisher = self.create_publisher(
             Bool, '/coverage/finished', latched_qos
         )
+        self.marker_reset_publisher = self.create_publisher(
+            Empty, '/coverage_markers/reset', latched_qos
+        )
         self.stop_service = self.create_service(
             Trigger, '/experiment/stop', self._stop_experiment_callback
         )
@@ -240,6 +243,7 @@ class ExperimentSupervisor(Node):
         return transforms
 
     def _start_experiment(self, initial_transforms):
+        self._reset_coverage_markers()
         self.get_logger().info(
             f'All robot poses are available; sending H to reset robot memory '
             f'on robots {self.robot_ids}'
@@ -273,6 +277,10 @@ class ExperimentSupervisor(Node):
             f'Experiment started with N={self.n}; observer coverage is progress '
             'only, and the run ends when every selected robot reports inactive'
         )
+
+    def _reset_coverage_markers(self):
+        self.marker_reset_publisher.publish(Empty())
+        self.get_logger().debug('Requested cleanup of previous coverage markers')
 
     def _abort_start(self, command, failures):
         details = '; '.join(
