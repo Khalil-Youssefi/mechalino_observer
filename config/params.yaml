@@ -6,19 +6,22 @@
     dist_coeff: [-0.44422210350101066, 0.2541470051820158,
                 0.0014616601794162248, -0.0006275944293412642,
                 -0.0850860601858966]
-    arena_marker_xy: [0.08, 0.08]
+    # Center of the black arena ArUco square in the arena frame. Moving the
+    # marker changes this transform, but does not move the coverage grid.
+    arena_marker_xy: [0.12, 0.22]
     # topics
     robots_pose_topic: "/robots/pose" # followed by /robot_id
     robots_intern_pose_topic: "/robots/intern_pose" # followed by /robot_id
     arena_pose_topic: "/arena/pose" # not used
     camera_topic: "/camera/raw"
     undistorted_camera_topic: "/camera/undistorted"
-    # Shared coverage grid: offsets are the center of cell [0][0].
+    # Shared coverage grid: offsets are the center of cell [0][0]. These must
+    # match X0/Y0 in the robot firmware and are independent of the marker pose.
     grid_m: 11
     grid_n: 4
     grid_k: 0.15
-    grid_offset_x: 0.15
-    grid_offset_y: 0.15
+    grid_offset_x: 0.18
+    grid_offset_y: 0.28
 
 cam2topic:
   ros__parameters:
@@ -29,7 +32,8 @@ cam2topic:
 pose_estimator:
   ros__parameters:
     ArUcoDictionary: 0 # DICT_4X4_50
-    ArenaArUcoMarkerSize: 0.08
+    # Side length of the black ArUco square, excluding paper/white margins.
+    ArenaArUcoMarkerSize: 0.16
     MechalinoArUcoMarkerSize: 0.066
     arena_ArUcoID: 0
     cutoff_freq: 1.0

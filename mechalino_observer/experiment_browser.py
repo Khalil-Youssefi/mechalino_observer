@@ -7,17 +7,44 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import yaml
 
-GRID_M = 11
-GRID_N = 4
-GRID_K = 0.15
-GRID_X0 = 0.15
-GRID_Y0 = 0.15
 FIRST_ROBOT_ID = 15
 COLORS = [
     '#e63946', '#277da1', '#43aa8b', '#f8961e', '#8338ec',
     '#ff006e', '#00a6a6', '#6a994e', '#bc6c25', '#495057',
 ]
+
+
+def default_params_path():
+    source_path = Path(__file__).resolve().parents[1] / 'config' / 'params.yaml'
+    if source_path.is_file():
+        return source_path
+
+    from ament_index_python.packages import get_package_share_directory
+
+    return (
+        Path(get_package_share_directory('mechalino_observer'))
+        / 'config'
+        / 'params.yaml'
+    )
+
+
+def load_grid_config(params_path=None):
+    path = Path(params_path) if params_path else default_params_path()
+    with path.open(encoding='utf-8') as stream:
+        parameters = yaml.safe_load(stream)['/**']['ros__parameters']
+
+    grid = {
+        'columns': int(parameters['grid_m']),
+        'rows': int(parameters['grid_n']),
+        'cell_size': float(parameters['grid_k']),
+        'offset_x': float(parameters['grid_offset_x']),
+        'offset_y': float(parameters['grid_offset_y']),
+    }
+    if grid['columns'] < 1 or grid['rows'] < 1 or grid['cell_size'] <= 0.0:
+        raise ValueError(f'Invalid grid configuration in {path}')
+    return grid
 
 
 def default_csv_path():
@@ -34,19 +61,20 @@ def _literal(value, default):
         return default
 
 
-def normalize_obstacles(values):
+def normalize_obstacles(values, grid):
     cells = set()
     for value in values or []:
         try:
             row, column = (int(coordinate) for coordinate in value)
         except (TypeError, ValueError):
             continue
-        if 0 <= row < GRID_N and 0 <= column < GRID_M:
+        if 0 <= row < grid['rows'] and 0 <= column < grid['columns']:
             cells.add((row, column))
     return sorted(cells)
 
 
-def load_experiments(csv_path):
+def load_experiments(csv_path, grid=None):
+    grid = grid or load_grid_config()
     with csv_path.open(encoding='utf-8', newline='') as stream:
         rows = list(csv.DictReader(stream))
 
@@ -65,16 +93,17 @@ def load_experiments(csv_path):
             ),
             'status': row.get('status') or 'completed',
             'obstacles': normalize_obstacles(
-                _literal(row.get('obstacles'), [])
+                _literal(row.get('obstacles'), []), grid
             ),
         })
     return experiments
 
 
 class ExperimentBrowser:
-    def __init__(self, root, csv_path):
+    def __init__(self, root, csv_path, grid=None):
         self.root = root
         self.csv_path = csv_path
+        self.grid = grid or load_grid_config()
         self.experiments = []
         self.selected = None
 
@@ -129,7 +158,7 @@ class ExperimentBrowser:
 
     def reload(self):
         try:
-            self.experiments = load_experiments(self.csv_path)
+            self.experiments = load_experiments(self.csv_path, self.grid)
         except Exception as error:
             messagebox.showerror('Could not open CSV', str(error))
             return
@@ -188,10 +217,13 @@ class ExperimentBrowser:
         width = max(self.canvas.winfo_width(), 400)
         height = max(self.canvas.winfo_height(), 250)
         margin = 45
-        xmin = GRID_X0 - GRID_K / 2.0
-        ymin = GRID_Y0 - GRID_K / 2.0
-        xmax = xmin + GRID_M * GRID_K
-        ymax = ymin + GRID_N * GRID_K
+        columns = self.grid['columns']
+        rows = self.grid['rows']
+        cell_size = self.grid['cell_size']
+        xmin = self.grid['offset_x'] - cell_size / 2.0
+        ymin = self.grid['offset_y'] - cell_size / 2.0
+        xmax = xmin + columns * cell_size
+        ymax = ymin + rows * cell_size
         scale = min(
             (width - 2 * margin) / (xmax - xmin),
             (height - 2 * margin) / (ymax - ymin),
@@ -203,12 +235,15 @@ class ExperimentBrowser:
             return ox + (x - xmin) * scale, height - oy - (y - ymin) * scale
 
         obstacles = set(self.selected['obstacles'])
-        for row in range(GRID_N):
-            for column in range(GRID_M):
-                x1, y1 = point(xmin + column * GRID_K, ymin + row * GRID_K)
+        for row in range(rows):
+            for column in range(columns):
+                x1, y1 = point(
+                    xmin + column * cell_size,
+                    ymin + row * cell_size,
+                )
                 x2, y2 = point(
-                    xmin + (column + 1) * GRID_K,
-                    ymin + (row + 1) * GRID_K,
+                    xmin + (column + 1) * cell_size,
+                    ymin + (row + 1) * cell_size,
                 )
                 cell = (row, column)
                 if cell in obstacles:
@@ -224,7 +259,7 @@ class ExperimentBrowser:
                     x1, y1, x2, y2, fill=fill, outline=outline
                 )
                 if cell in obstacles:
-                    inset = max(3.0, GRID_K * scale * 0.22)
+                    inset = max(3.0, cell_size * scale * 0.22)
                     left, right = sorted((x1, x2))
                     top, bottom = sorted((y1, y2))
                     self.canvas.create_line(
@@ -277,9 +312,17 @@ def main():
     parser.add_argument(
         'csv_file', nargs='?', default=str(default_csv_path())
     )
+    parser.add_argument(
+        '--params-file', default=str(default_params_path()),
+        help='ROS parameter file containing the shared grid geometry',
+    )
     args = parser.parse_args()
     root = tk.Tk()
-    ExperimentBrowser(root, Path(args.csv_file).expanduser().resolve())
+    ExperimentBrowser(
+        root,
+        Path(args.csv_file).expanduser().resolve(),
+        load_grid_config(Path(args.params_file).expanduser().resolve()),
+    )
     root.mainloop()
 
 
