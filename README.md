@@ -16,15 +16,15 @@ to the robots in parallel to reset their memory, waits 200 ms, and then sends
 `cmd=Q` to start the run. It marks a configured grid cell covered whenever a
 robot is inside it. The observer-side grid is progress information only. The
 supervisor polls every selected robot's `/debug` endpoint and ends the run when
-the first robot reports global coverage completion. It then sends `cmd=S` to
-every selected robot and exits.
+all selected robots report `GOTO_INACTIVE`. It then sends `cmd=S` to every
+selected robot and exits.
 
-For completion detection, each robot must first report a non-idle `goto_state`
-after the experiment starts. A later transition to `goto_state=0` means the
-firmware found no unvisited, non-obstacle cells. `goto_state=4` only means that
-one route has finished and does not terminate the experiment. Requiring the
-active-to-idle transition prevents a cached pre-start debug response from
-ending the experiment immediately.
+For completion detection, each robot must first report a post-start, non-idle
+`goto_state`. `goto_state=5` is `GOTO_INACTIVE`; a robot uses it when its
+component is complete or when it yields scarce final cells to a closer peer.
+`goto_state=4` only means that one route has finished and does not terminate the
+experiment. Requiring a post-start sample prevents a cached pre-start response
+from ending the experiment immediately.
 
 Cells listed in the `excluded_cells` parameter are omitted from the observer's
 progress percentage. The value is a flattened sequence of `(row, column)`
@@ -41,7 +41,8 @@ default, regardless of the terminal's current directory:
   that robot's latest `obstacles` map.
 - `all_experiments.csv` receives one appended summary row for completed and
   manually stopped runs. Its `obstacles` column contains the cell-wise union of
-  the latest obstacle maps received from every robot.
+  the latest obstacle maps received from every robot. New runs start with
+  `valid=true`; this review flag is independent of the completion status.
 
 Stop a running experiment at any time with Ctrl+C in its terminal or with:
 
@@ -72,5 +73,12 @@ ros2 run mechalino_observer experiment_browser experiment_results/all_experiment
 ```
 
 Select a run from the list to see its robot trajectories, aggregated obstacle
-cells, status, duration, average speeds, and per-robot speed values. Older CSV
-rows without obstacle data remain loadable and display an empty obstacle map.
+cells, status, validity, duration, average speeds, and per-robot speed values.
+Use **Browse CSV...** to select a different aggregate results file; the file
+picker opens automatically when the default CSV does not exist.
+Use **Hide incomplete / failed** to limit the browser list to completed runs.
+Use **Export completed + valid...** to save a separate CSV containing only
+completed runs that have not been marked invalid.
+Use **Mark invalid** to exclude a bad completed run from analysis, and **Mark
+valid** to include it again. The choice is saved in `all_experiments.csv`.
+Older CSV rows without validity metadata remain loadable and default to valid.

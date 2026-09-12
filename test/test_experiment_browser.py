@@ -1,8 +1,14 @@
 import csv
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from mechalino_observer.experiment_browser import (
+    ExperimentBrowser,
+    export_valid_completed_experiments,
     load_experiments,
     load_grid_config,
+    set_experiment_validity,
 )
 
 
@@ -57,6 +63,91 @@ def test_old_csv_without_obstacles_remains_loadable(tmp_path):
     experiments = load_experiments(csv_path)
 
     assert experiments[0]['obstacles'] == []
+    assert experiments[0]['valid'] is True
+
+
+def test_validity_can_be_added_to_an_old_csv(tmp_path):
+    """The first review of an old CSV adds its validity column."""
+    csv_path = tmp_path / 'experiments.csv'
+    _write_csv(csv_path, BASE_HEADER, BASE_ROW)
+
+    set_experiment_validity(csv_path, 0, False)
+
+    experiments = load_experiments(csv_path)
+    assert experiments[0]['valid'] is False
+    with csv_path.open(encoding='utf-8', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert rows[0] == BASE_HEADER + ['valid']
+    assert rows[1] == BASE_ROW + ['false']
+
+
+def test_validity_update_changes_only_the_selected_row(tmp_path):
+    """Changing validity must address the selected data row only."""
+    csv_path = tmp_path / 'experiments.csv'
+    with csv_path.open('w', encoding='utf-8', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(BASE_HEADER + ['valid'])
+        writer.writerow(BASE_ROW + ['true'])
+        writer.writerow(BASE_ROW + ['false'])
+
+    set_experiment_validity(csv_path, 1, True)
+
+    experiments = load_experiments(csv_path)
+    assert [experiment['valid'] for experiment in experiments] == [True, True]
+
+
+def test_csv_picker_loads_selected_file(tmp_path):
+    """Selecting a CSV updates the browser path and reloads its content."""
+    csv_path = tmp_path / 'experiments.csv'
+    browser = SimpleNamespace(
+        root=object(),
+        csv_path=None,
+        csv_path_text=MagicMock(),
+        reload=MagicMock(),
+    )
+
+    with patch(
+        'mechalino_observer.experiment_browser.filedialog.askopenfilename',
+        return_value=str(csv_path),
+    ):
+        ExperimentBrowser.choose_csv(browser)
+
+    assert browser.csv_path == Path(csv_path).resolve()
+    browser.csv_path_text.set.assert_called_once_with(str(csv_path.resolve()))
+    browser.reload.assert_called_once_with()
+
+
+def test_export_contains_only_completed_valid_experiments(tmp_path):
+    """CSV export excludes failed and manually invalidated experiments."""
+    source_path = tmp_path / 'experiments.csv'
+    output_path = tmp_path / 'export.csv'
+    with source_path.open('w', encoding='utf-8', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(BASE_HEADER + ['valid'])
+        writer.writerow(BASE_ROW + ['true'])
+        writer.writerow(BASE_ROW[:-1] + ['failed', 'true'])
+        writer.writerow(BASE_ROW + ['false'])
+
+    count = export_valid_completed_experiments(source_path, output_path)
+
+    with output_path.open(encoding='utf-8', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert count == 1
+    assert rows == [BASE_HEADER + ['valid'], BASE_ROW + ['true']]
+
+
+def test_export_adds_validity_to_legacy_csv(tmp_path):
+    """Rows from an older aggregate CSV are considered valid by default."""
+    source_path = tmp_path / 'experiments.csv'
+    output_path = tmp_path / 'export.csv'
+    _write_csv(source_path, BASE_HEADER, BASE_ROW)
+
+    count = export_valid_completed_experiments(source_path, output_path)
+
+    with output_path.open(encoding='utf-8', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert count == 1
+    assert rows == [BASE_HEADER + ['valid'], BASE_ROW + ['true']]
 
 
 def test_loads_grid_geometry_from_ros_parameters(tmp_path):

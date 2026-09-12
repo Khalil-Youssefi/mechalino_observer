@@ -228,13 +228,84 @@ def test_existing_summary_csv_is_migrated_with_empty_obstacles(tmp_path):
     needs_header = ExperimentSupervisor._prepare_all_experiments_csv(
         SimpleNamespace(),
         csv_path,
-        old_header + ['obstacles'],
+        old_header + ['obstacles', 'valid'],
     )
 
     with csv_path.open(encoding='utf-8', newline='') as stream:
         rows = list(csv.reader(stream))
     assert needs_header is False
-    assert rows == [old_header + ['obstacles'], old_row + ['[]']]
+    assert rows == [
+        old_header + ['obstacles', 'valid'],
+        old_row + ['[]', 'true'],
+    ]
     assert csv_path.with_name(
         'all_experiments.csv.pre_obstacles_backup'
     ).exists()
+
+
+def test_summary_csv_with_obstacles_is_migrated_with_validity(tmp_path):
+    """The supervisor adds valid=true to the preceding summary schema."""
+    csv_path = tmp_path / 'all_experiments.csv'
+    header = [
+        'N',
+        'date_time',
+        'total_time',
+        'trajectories',
+        'speeds',
+        'speeds_no_stop',
+        'avg_robots_speeds',
+        'avg_robots_no_stop_speeds',
+        'status',
+        'obstacles',
+    ]
+    row = ['1', 'date', '1.0', '[]', '[]', '[]', '0', '0', 'completed', '[]']
+    with csv_path.open('w', encoding='utf-8', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(header)
+        writer.writerow(row)
+
+    needs_header = ExperimentSupervisor._prepare_all_experiments_csv(
+        SimpleNamespace(), csv_path, header + ['valid']
+    )
+
+    with csv_path.open(encoding='utf-8', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert needs_header is False
+    assert rows == [header + ['valid'], row + ['true']]
+    assert csv_path.with_name('all_experiments.csv.pre_valid_backup').exists()
+
+
+def test_browser_validity_column_is_preserved_while_adding_obstacles(tmp_path):
+    """Schema migration keeps a review performed on an older CSV."""
+    csv_path = tmp_path / 'all_experiments.csv'
+    header = [
+        'N',
+        'date_time',
+        'total_time',
+        'trajectories',
+        'speeds',
+        'speeds_no_stop',
+        'avg_robots_speeds',
+        'avg_robots_no_stop_speeds',
+        'status',
+        'valid',
+    ]
+    row = [
+        '1', 'date', '1.0', '[]', '[]', '[]', '0', '0', 'completed', 'false'
+    ]
+    with csv_path.open('w', encoding='utf-8', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(header)
+        writer.writerow(row)
+
+    expected_header = header[:-1] + ['obstacles', 'valid']
+    ExperimentSupervisor._prepare_all_experiments_csv(
+        SimpleNamespace(), csv_path, expected_header
+    )
+
+    with csv_path.open(encoding='utf-8', newline='') as stream:
+        rows = list(csv.reader(stream))
+    assert rows == [
+        expected_header,
+        row[:-1] + ['[]', 'false'],
+    ]

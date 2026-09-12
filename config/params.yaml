@@ -60,7 +60,8 @@ debug_map_viz:
     robot_frame: "mechalino_15"
     update_period_s: 1.0
     http_timeout_s: 2.0
-    obstacle_distance_m: 0.15
+    # Keep debug rays aligned with OBSTACLE_DIST_M in the robot firmware.
+    obstacle_distance_m: 0.17
     marker_lifetime_s: 2.5
     map_z: 0.01
 

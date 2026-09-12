@@ -669,6 +669,7 @@ class ExperimentSupervisor(Node):
             'avg_robots_no_stop_speeds',
             'status',
             'obstacles',
+            'valid',
         ]
         needs_header = self._prepare_all_experiments_csv(all_path, all_header)
         with all_path.open('a', encoding='utf-8', newline='') as csv_file:
@@ -687,6 +688,7 @@ class ExperimentSupervisor(Node):
                     f'{sum(speeds_no_stop) / len(speeds_no_stop):.9f}',
                     status,
                     repr(aggregated_obstacles),
+                    'true',
                 ]
             )
 
@@ -702,29 +704,46 @@ class ExperimentSupervisor(Node):
         if rows[0] == expected_header:
             return False
 
-        header_with_status = expected_header[:-1]
-        header_without_status = expected_header[:-2]
-        if rows[0] == header_with_status:
-            added_values = ['[]']
-        elif rows[0] == header_without_status:
-            added_values = ['completed', '[]']
-        else:
+        current_header = rows[0]
+        base_header = expected_header[:-3]
+        optional_columns = {'status', 'obstacles', 'valid'}
+        trailing_columns = current_header[len(base_header):]
+        if (
+            current_header[:len(base_header)] != base_header
+            or len(trailing_columns) != len(set(trailing_columns))
+            or not set(trailing_columns).issubset(optional_columns)
+        ):
             raise ValueError(
                 f'Unexpected CSV header in {all_path}: {rows[0]}'
             )
 
+        backup_suffix = (
+            'pre_obstacles_backup'
+            if 'obstacles' not in current_header
+            else 'pre_valid_backup'
+        )
+
         backup_path = all_path.with_name(
-            f'{all_path.name}.pre_obstacles_backup'
+            f'{all_path.name}.{backup_suffix}'
         )
         if not backup_path.exists():
             shutil.copy2(all_path, backup_path)
 
         temporary_path = all_path.with_name(f'{all_path.name}.tmp')
+        default_values = {
+            'status': 'completed',
+            'obstacles': '[]',
+            'valid': 'true',
+        }
         with temporary_path.open('w', encoding='utf-8', newline='') as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(expected_header)
             for row in rows[1:]:
-                writer.writerow(row + added_values)
+                values = dict(zip(current_header, row))
+                writer.writerow([
+                    values.get(column, default_values.get(column, ''))
+                    for column in expected_header
+                ])
         temporary_path.replace(all_path)
         return False
 
